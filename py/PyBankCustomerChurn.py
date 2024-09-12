@@ -17,11 +17,9 @@ def main():
     feature_create(customers_data)
 
     df = customers_data.drop(labels=['CLIENTNUM', 'Total_Relationship_Count', 'Contacts_Count_12_mon'], axis=1)
-    df = df[df.columns[:-7]]
+    df_gdbt, label = select_feature(df)
 
-    df_gdbt,label = select_feature(df)
-
-    data_train(df_gdbt,label )
+    data_train(df_gdbt,label)
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from scipy.stats import chi2_contingency
 from sklearn.impute import SimpleImputer  # 用于填充缺失值
 
@@ -14,15 +14,23 @@ def chi_square(data, features):
     for feature in features:
         crosstab = pd.crosstab(data[feature], data['Attrition_Flag'])  # 创建列联表
         chi_square, p_value, dof, expected = chi2_contingency(crosstab)
+        if p_value < 0.05:
+            features.remove(feature)
         row = {'Feature': feature, 'Chi_square': chi_square, 'P_value': p_value}
         results = results._append(row, ignore_index=True)
-    return results
+    return results, features
 
 def select_feature(df):
     # 计算皮尔逊相关系数
     num_df = df.select_dtypes(include=np.number)
     corr_mar = num_df.corr()  # 计算数据框各列之间的皮尔逊相关系数
     corr_df = pd.DataFrame({'Corr': corr_mar['Attrition_Flag']}).reset_index().sort_values('Corr', ascending=False).rename(columns={'index': 'Feature'})
+    filtered_features_list = corr_df[(corr_df['Corr'].abs() < 0.9) & (corr_df['Corr'].abs() > 0.01)]['Feature'].tolist()
+    filtered_features_list.append('Attrition_Flag')
+    print("================")
+    print(filtered_features_list)
+    print("================")
+    df = df[filtered_features_list]
     print(corr_df)
     F = corr_df['Feature']
     C = corr_df['Corr']
@@ -32,8 +40,7 @@ def select_feature(df):
     plt.title('各影响因素的皮尔逊相关系数')
     plt.show()
 
-    features = ['Gender', 'Education_Level', 'Marital_Status', 'Income_Category', 'Card_Category']
-    chi_df = chi_square(df, features)
+    chi_df, filtered_features_list = chi_square(df, filtered_features_list)
     print(chi_df)
 
     # 绘制卡方检验值和P值的折线图
@@ -49,17 +56,16 @@ def select_feature(df):
     plt.xlabel('Features')
     plt.show()
 
-    # 客户细分(K均值聚类算法)
+    # 客户细分 (K 均值聚类算法) 并进行 Label Encoding
     df_kmeans = df.copy(deep=True)
-    df_kmeans['Gender'] = df_kmeans['Gender'].map({'M': 1, 'F': 0})
-    df_kmeans['Education_Level'] = df_kmeans['Education_Level'].map({'Unknown': 0, 'Uneducated': 1, 'High School': 2, 'College': 3, 'Graduate': 4, 'Post-Graduate': 5, 'Doctorate': 6})
-    df_kmeans['Marital_Status'] = df_kmeans['Marital_Status'].map({'Unknown': 0, 'Single': 1, 'Married': 2, 'Divorced': 3})
-    df_kmeans['Income_Category'] = df_kmeans['Income_Category'].map({'Unknown': 72000, 'Less than $40K': 20000, '$40K - $60K': 50000, '$60K - $80K': 70000, '$80K - $120K': 100000, '$120K +': 120000})
-    df_kmeans['Card_Category'] = df_kmeans['Card_Category'].map({'Blue': 0, 'Gold': 1, 'Silver': 2, 'Platinum': 3})
+    le = LabelEncoder()
+    for feature in filtered_features_list:
+        if df_kmeans[feature].dtype == 'object':
+            df_kmeans[feature] = le.fit_transform(df_kmeans[feature].astype(str))
 
     # 填充缺失值
     imputer = SimpleImputer(strategy='mean')  # 使用均值填充
-    features = df_kmeans[['Customer_Age', 'Gender', 'Dependent_count', 'Education_Level', 'Marital_Status', 'Income_Category', 'Card_Category', 'Months_on_book', 'Months_Inactive_12_mon', 'Credit_Limit']]
+    features = df_kmeans.select_dtypes(include=np.number)
     features = imputer.fit_transform(features)
 
     # 进行数据标准化处理
@@ -75,7 +81,7 @@ def select_feature(df):
     print(df_kmeans[['Attrition_Flag', 'Clusters']].head())
 
     # 对三个客户群体进行分析各其特征和流失率
-    clusters_analysis = df_kmeans.groupby(by='Clusters').agg({'Customer_Age': 'mean', 'Dependent_count': 'mean', 'Income_Category': 'mean', 'Months_on_book': 'mean', 'Months_Inactive_12_mon': 'mean', 'Credit_Limit': 'mean', 'Attrition_Flag': 'mean'}).reset_index().round(2)
+    clusters_analysis = df_kmeans.groupby(by='Clusters')[filtered_features_list].agg('mean').reset_index().round(2)
     print(clusters_analysis)
 
     # GradientBoostingClassifier 梯度提升算法
