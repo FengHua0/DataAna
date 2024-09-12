@@ -14,7 +14,7 @@ def chi_square(data, features):
     for feature in features:
         crosstab = pd.crosstab(data[feature], data['Attrition_Flag'])  # 创建列联表
         chi_square, p_value, dof, expected = chi2_contingency(crosstab)
-        if p_value < 0.05:
+        if p_value > 0.05:
             features.remove(feature)
         row = {'Feature': feature, 'Chi_square': chi_square, 'P_value': p_value}
         results = results._append(row, ignore_index=True)
@@ -41,6 +41,9 @@ def select_feature(df):
     plt.show()
 
     chi_df, filtered_features_list = chi_square(df, filtered_features_list)
+    print("================")
+    print(filtered_features_list)
+    print("================")
     print(chi_df)
 
     # 绘制卡方检验值和P值的折线图
@@ -88,7 +91,5 @@ def select_feature(df):
     df_gdbt = df_kmeans[df_kmeans.columns[:-1]]
     target = df_gdbt[['Attrition_Flag']]
     df_gdbt = df_gdbt.drop(labels=['Attrition_Flag'], axis=1)
-    print(df_gdbt)
-    df_gdbt.info()
 
     return df_gdbt, target
