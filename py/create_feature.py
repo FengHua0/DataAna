@@ -34,11 +34,9 @@ def feature_create(customers_data):
 
     """
     customers_data = customers_data[customers_data.columns[:-2]]# 取所有列但去掉最后两列
-    print(customers_data)
 
     print("缺失值个数: ", customers_data.duplicated().sum())
     print("重复值个数:\n", customers_data.isna().sum())
-    print("数据集信息:\n", customers_data.info())
 
     # 设置显示中文
     plt.rcParams['font.sans-serif'] = ['SimHei']

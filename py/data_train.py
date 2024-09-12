@@ -1,32 +1,44 @@
 import pandas as pd
-from PIL._imaging import display
 from matplotlib import pyplot as plt
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split, GridSearchCV
 
 
-def data_train(df_gdbt):
-    target = df_gdbt[['Attrition_Flag']]
+def data_train(df_gdbt, target):
+    # 填充缺失值
+    imputer = SimpleImputer(strategy='mean')
+    df_gdbt = imputer.fit_transform(df_gdbt)
+
     # 划分训练集和测试集
     x_train, x_test, y_train, y_test = train_test_split(df_gdbt, target, test_size=0.2, random_state=42)
-    # 构建模型
+
+    # 构建 Gradient Boosting Classifier 模型
     gbdt = GradientBoostingClassifier()
+
     # 训练模型
     gbdt.fit(x_train, y_train)
+
     # 返回各个特征的重要性，数值越大，特征越重要
     importances = gbdt.feature_importances_
-    # 将这个特征重要性以图表形式可视化显示
-    importances_df = pd.DataFrame(importances, index=df_gdbt.columns, columns=['importance'])
+
+    # 将特征重要性以图表形式可视化显示
+    importances_df = pd.DataFrame(importances, index=[f'Feature {i}' for i in range(len(importances))],
+                                  columns=['importance'])
+
     # 按特征重要性降序排列
     importances_df = importances_df.sort_values(by='importance', ascending=False)
-    display(importances_df)
+    print(importances_df)
 
     # 画柱状图
-    plt.bar(df_gdbt.columns, importances_df['importance'])
+    plt.bar(importances_df.index, importances_df['importance'])
     plt.xlabel('数据特征')
     plt.ylabel('特征重要性')
+    plt.xticks(rotation=90)
+    plt.title('特征重要性')
     plt.show()
+
     # 在测试集上进行预测
     y_pred = gbdt.predict(x_test)
     print("梯度提升决策树准确度:", gbdt.score(x_test, y_test))
@@ -41,7 +53,7 @@ def data_train(df_gdbt):
     }
 
     # 创建 GridSearchCV 对象
-    y_train1 = y_train.values.ravel()
+    y_train1 = y_train.ravel()  # 展平 y_train，确保其是 1D 数组
     grid_search = GridSearchCV(gbdt1, parameters, cv=5)
     grid_search.fit(x_train, y_train1)
 
@@ -58,4 +70,3 @@ def data_train(df_gdbt):
     test_score = best_gbdt.score(x_test, y_test)
     print("最优参数下的梯度提升决策树准确度:", test_score)
     print("其他指标：\n", classification_report(y_test, y_pred))
-
