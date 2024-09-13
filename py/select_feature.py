@@ -76,7 +76,7 @@ def select_feature(df):
     scaler_features = scaler.fit_transform(features)
 
     # 创建聚类算法对象并训练
-    kmeans = KMeans(n_clusters=3, random_state=42)
+    kmeans = KMeans(n_clusters=2, random_state=42)
     clusters = kmeans.fit_predict(scaler_features)
 
     # 将聚类结果添加到 df 数据框里
